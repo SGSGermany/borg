@@ -1,0 +1,26 @@
+#!/bin/sh
+# Borg
+# A container to create backups using Borg.
+#
+# Copyright (c) 2022  SGS Serious Gaming & Simulations GmbH
+#
+# This work is licensed under the terms of the MIT license.
+# For a copy, see LICENSE file or <https://opensource.org/licenses/MIT>.
+#
+# SPDX-License-Identifier: MIT
+# License-Filename: LICENSE
+
+if ! [ -e "/run/secrets/borg_pass" ]; then
+    exit 0
+fi
+
+if ! [ -f "/run/secrets/borg_pass" ]; then
+    echo "Failed to read 'borg_pass' secret: Not a file" >&2
+    exit 1
+fi
+if ! [ -r "/run/secrets/borg_pass" ]; then
+    echo "Failed to read 'borg_pass' secret: Permission denied" >&2
+    exit 1
+fi
+
+cat "/run/secrets/borg_pass" || exit 1

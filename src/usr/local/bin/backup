@@ -1,0 +1,165 @@
+#!/bin/bash
+# Borg
+# A container to create backups using Borg.
+#
+# Copyright (c) 2022  SGS Serious Gaming & Simulations GmbH
+#
+# This work is licensed under the terms of the MIT license.
+# For a copy, see LICENSE file or <https://opensource.org/licenses/MIT>.
+#
+# SPDX-License-Identifier: MIT
+# License-Filename: LICENSE
+
+set -eu -o pipefail
+export LC_ALL=C
+
+[ -n "${USER:-}" ] || export USER="$(id -un)"
+[ -n "${HOME:-}" ] || export HOME="$(bash -c "echo ~$(printf '%q' "$USER")")"
+
+APP_NAME="$(basename "${BASH_SOURCE[0]}")"
+LIB_DIR="/usr/local/lib/backup"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/backup"
+
+print_usage() {
+    echo "Usage:"
+    echo "  $APP_NAME [--verbose] [--config CONFIG] ACTION [ARGUMENT]..."
+}
+
+print_help() {
+    print_usage
+    echo
+    echo "Actions:"
+    echo "  init     Initializes an empty Borg repository."
+    echo "  create   Creates archives (i.e. actually performs the backup)."
+    echo "  check    Verifies the consistency of a Borg repository and its archives."
+    echo "  restore  Restores files from a named archive."
+    echo "  mount    Mounts a Borg repository as a FUSE filesystem."
+    echo "  umount   Unmounts a previously mounted Borg FUSE filesystem."
+    echo "  delete   Deletes archives from a Borg repository."
+    echo "  prune    Prunes archives according to the retention policy."
+    echo "  list     Lists all archives in a Borg repository."
+    echo "  info     Displays information about a Borg repository or its archives."
+    echo "  borg     Runs an arbitrary Borg command."
+    echo "  configs  Prints a list of available backup configs."
+    echo "  help     Prints usage info about an action and exits."
+}
+
+# read parameters
+CONFIG_FILE="config.env"
+ACTION=""
+VERBOSE=""
+
+while [ $# -gt 0 ]; do
+    if [ "$1" == "--help" ]; then
+        print_help
+        exit
+    elif [ "$1" == "--verbose" ] || [ "$1" == "-v" ]; then
+        VERBOSE="yes"
+        shift
+    elif [ "$1" == "--config" ] || [ "$1" == "-c" ]; then
+        if [ -z "${2:-}" ]; then
+            echo "Missing required argument 'CONFIG' for option '--config'" >&2
+            exit 1
+        fi
+
+        CONFIG_FILE="$2"
+        shift 2
+    elif [ "${1:0:1}" == "-" ]; then
+        echo "Unknown option: $1" >&2
+        exit 1
+    elif [ -z "$ACTION" ]; then
+        ACTION="$1"
+        shift
+
+        break
+    fi
+done
+
+if [ -z "$ACTION" ]; then
+    echo "Missing required argument 'ACTION'" >&2
+    echo >&2
+    print_usage >&2
+    exit 1
+fi
+
+# check whether usage info should be printed
+PRINT_HELP=""
+if [ "$ACTION" == "help" ]; then
+    if [ $# -eq 0 ]; then
+        print_help
+        exit
+    fi
+
+    if [ "$1" == "--help" ]; then
+        echo "Usage:"
+        echo "  $APP_NAME help [ACTION]"
+        exit
+    fi
+
+    if [ -z "$1" ]; then
+        echo "Missing required argument 'ACTION' for action 'help'" >&2
+        exit 1
+    fi
+
+    PRINT_HELP="yes"
+    ACTION="$1"
+    shift
+elif [ "${1:-}" == "--help" ]; then
+    PRINT_HELP="yes"
+    shift
+fi
+
+# source helper functions
+source "$LIB_DIR/helper.sh.inc"
+
+# source action
+if [ ! -e "$LIB_DIR/$ACTION.sh" ]; then
+    echo "Invalid action '$ACTION': Action not found" >&2
+    exit 1
+elif [ ! -f "$LIB_DIR/$ACTION.sh" ] || [ ! -r "$LIB_DIR/$ACTION.sh" ]; then
+    echo "Invalid action '$ACTION': Action is invalid" >&2
+    exit 1
+fi
+
+source "$LIB_DIR/$ACTION.sh"
+
+# print usage info, if requested
+if [ -n "$PRINT_HELP" ]; then
+    action_help
+    exit
+fi
+
+# source config
+if [ "${CONFIG_FILE:0:1}" != "/" ]; then
+    CONFIG_FILE="$CONFIG_DIR/$CONFIG_FILE"
+fi
+
+if [ ! -e "$CONFIG_FILE" ]; then
+    echo "Invalid config file '$CONFIG_FILE': No such file or directory" >&2
+    exit 1
+elif [ ! -f "$CONFIG_FILE" ]; then
+    echo "Invalid config file '$CONFIG_FILE': Not a file" >&2
+    exit 1
+elif [ ! -r "$CONFIG_FILE" ]; then
+    echo "Invalid config file '$CONFIG_FILE': Permission denied" >&2
+    exit 1
+fi
+
+source "$CONFIG_FILE"
+
+# set default config values
+[ -n "${BORG_REPO:-}" ] || BORG_REPO="$HOME/borg/repo"
+[ -n "${BORG_CREATE_ARCHIVE:-}" ] || BORG_CREATE_ARCHIVE="{utcnow:%Y-%m-%dT%H:%M:%SZ}"
+[ -v BORG_CREATE_PATHS ] && [ ${#BORG_CREATE_PATHS[@]} -gt 0 ] || BORG_CREATE_PATHS=( "/" )
+[ -v BORG_CREATE_EXCLUDE ] || BORG_CREATE_EXCLUDE=()
+[ -v BORG_PRUNE_PREFIX ] || BORG_PRUNE_PREFIX=""
+[ -v BORG_PRUNE_KEEPS ] || BORG_PRUNE_KEEPS=()
+[ -n "${BORG_MOUNT:-}" ] || BORG_MOUNT="$HOME/borg/mount"
+[ -n "${BORG_RESTORE:-}" ] || BORG_RESTORE="$HOME/borg/restore"
+
+# call action
+if [ -n "$VERBOSE" ]; then
+    action_info
+fi
+
+action_exec "$@"
