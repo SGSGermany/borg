@@ -1,0 +1,73 @@
+name: Build & publish container
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*.*.*' ]
+  workflow_dispatch: {}
+
+concurrency: build
+
+env:
+  GIT_REMOTE_URL: ${{ github.server_url }}/${{ github.repository }}.git
+  CI_TOOLS_SETUP: https://raw.githubusercontent.com/SGSGermany/ci-tools/main/setup.sh
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      REGISTRY: ghcr.io
+      OWNER: sgsgermany
+      IMAGE: borg
+
+    steps:
+      - name: Setup CI tools
+        run: |
+          . <(curl -fsS -L "$CI_TOOLS_SETUP" | bash -s ~/ci-tools)
+          echo "CI_TOOLS_PATH=$CI_TOOLS_PATH" | tee -a "$GITHUB_ENV"
+
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Log into container registry ${{ env.REGISTRY }}
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate container image tags
+        run: |
+          TAGS="$("$CI_TOOLS_PATH/containers/generate-image-tags.sh" "${GITHUB_REF:-$GITHUB_SHA}")"
+          echo "TAGS=${TAGS:-latest}" | tee -a "$GITHUB_ENV"
+
+      - name: Check for updates
+        run: |
+          BUILD_ACTION="$("$CI_TOOLS_PATH/containers/check-for-updates.sh" "sha-$GITHUB_SHA")"
+          echo "BUILD_ACTION=$BUILD_ACTION" | tee -a "$GITHUB_ENV"
+
+      - name: Build container image
+        if: ${{ env.BUILD_ACTION == 'build' }}
+        run: |
+          buildah unshare ./build.sh
+
+      - name: Add container image tags
+        if: ${{ env.BUILD_ACTION == 'tag' }}
+        run: |
+          "$CI_TOOLS_PATH/containers/add-image-tags.sh" "sha-$GITHUB_SHA"
+
+      - name: Container image metadata
+        run: |
+          podman image inspect "$IMAGE:sha-$GITHUB_SHA"
+
+      - name: Push container image
+        if: ${{ env.BUILD_ACTION != '' }}
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ env.IMAGE }}
+          registry: ${{ env.REGISTRY }}/${{ env.OWNER }}
+          tags: ${{ env.TAGS }}
