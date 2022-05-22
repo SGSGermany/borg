@@ -1,0 +1,360 @@
+#!/bin/bash
+# Borg
+# A container to create backups using Borg.
+#
+# Copyright (c) 2022  SGS Serious Gaming & Simulations GmbH
+#
+# This work is licensed under the terms of the MIT license.
+# For a copy, see LICENSE file or <https://opensource.org/licenses/MIT>.
+#
+# SPDX-License-Identifier: MIT
+# License-Filename: LICENSE
+
+set -eu -o pipefail
+export LC_ALL=C
+
+APP_NAME="$(basename "${BASH_SOURCE[0]}")"
+CONTAINER_CONFIG_DIR="/etc/backup"
+
+print_usage() {
+    echo "Usage:"
+    echo "  $APP_NAME [--verbose] [--container CONTAINER_CONFIG] \\"
+    echo "  ${APP_NAME//?/ } [--config CONFIG] ACTION [ARGUMENT]..."
+}
+
+print_help() {
+    print_usage
+    echo
+    echo "Actions:"
+    echo "  init     Initializes an empty Borg repository."
+    echo "  create   Creates archives (i.e. actually performs the backup; default action)."
+    echo "  check    Verifies the consistency of a Borg repository and its archives."
+    echo "  restore  Restores files from a named archive."
+    echo "  delete   Deletes archives from a Borg repository."
+    echo "  prune    Prunes archives according to the retention policy."
+    echo "  list     Lists all archives in a Borg repository."
+    echo "  info     Displays information about a Borg repository or its archives."
+    echo "  shell    Opens an interactive Bash shell inside the Borg container."
+    echo "  borg     Runs an arbitrary Borg command."
+    echo "  configs  Prints a list of available backup configs."
+    echo "  help     Prints usage info about an action and exits."
+}
+
+quote() {
+    local QUOTED=""
+    for ARG in "$@"; do
+        [ "$(printf '%q' "$ARG")" == "$ARG" ] \
+            && QUOTED+=" $ARG" \
+            || QUOTED+=" ${ARG@Q}"
+    done
+
+    echo "${QUOTED:1}"
+}
+
+cmd() {
+    if [ -n "$VERBOSE" ]; then
+        echo + "$(quote "$@")" >&2
+    fi
+
+    "$@"
+    return $?
+}
+
+check_borg() {
+    # check backup directory
+    if [ ! -e "$BACKUP_HOME/backup" ]; then
+        echo "Invalid backup directory '$BACKUP_HOME/backup': No such file or directory" >&2
+        exit 1
+    elif [ ! -d "$BACKUP_HOME/backup" ]; then
+        echo "Invalid backup directory '$BACKUP_HOME/backup': Not a directory" >&2
+        exit 1
+    fi
+
+    # check restore directory
+    if [ ! -e "$BACKUP_HOME/restore" ]; then
+        echo "Invalid restore directory '$BACKUP_HOME/restore': No such file or directory" >&2
+        exit 1
+    elif [ ! -d "$BACKUP_HOME/restore" ]; then
+        echo "Invalid restore directory '$BACKUP_HOME/restore': Not a directory" >&2
+        exit 1
+    fi
+
+    # check Borg repo directory
+    if [ ! -e "$BACKUP_HOME/repo" ]; then
+        echo "Invalid Borg repo directory '$BACKUP_HOME/repo': No such file or directory" >&2
+        exit 1
+    elif [ ! -d "$BACKUP_HOME/repo" ]; then
+        echo "Invalid Borg repo directory '$BACKUP_HOME/repo': Not a directory" >&2
+        exit 1
+    fi
+
+    # check Borg cache directory
+    if [ ! -e "$BACKUP_HOME/cache" ]; then
+        echo "Invalid Borg cache directory '$BACKUP_HOME/cache': No such file or directory" >&2
+        exit 1
+    elif [ ! -d "$BACKUP_HOME/cache" ]; then
+        echo "Invalid Borg cache directory '$BACKUP_HOME/cache': Not a directory" >&2
+        exit 1
+    fi
+
+    # check backup config directory
+    if [ ! -e "$BACKUP_HOME/config/backup" ]; then
+        echo "Invalid backup config directory '$BACKUP_HOME/config/backup': No such file or directory" >&2
+        exit 1
+    elif [ ! -d "$BACKUP_HOME/config/backup" ]; then
+        echo "Invalid backup config directory '$BACKUP_HOME/config/backup': Not a directory" >&2
+        exit 1
+    fi
+
+    # check Borg config directory
+    if [ ! -e "$BACKUP_HOME/config/borg" ]; then
+        echo "Invalid Borg config directory '$BACKUP_HOME/config/borg': No such file or directory" >&2
+        exit 1
+    elif [ ! -d "$BACKUP_HOME/config/borg" ]; then
+        echo "Invalid Borg config directory '$BACKUP_HOME/config/borg': Not a directory" >&2
+        exit 1
+    fi
+
+    # check SSH config directory
+    if [ ! -e "$BACKUP_HOME/config/ssh" ]; then
+        echo "Invalid SSH config directory '$BACKUP_HOME/config/ssh': No such file or directory" >&2
+        exit 1
+    elif [ ! -d "$BACKUP_HOME/config/ssh" ]; then
+        echo "Invalid SSH config directory '$BACKUP_HOME/config/ssh': Not a directory" >&2
+        exit 1
+    fi
+
+    # check Borg secret
+    if [ -n "$BACKUP_SECRET" ]; then
+        if [ ! -e "$BACKUP_SECRET" ]; then
+            echo "Invalid Borg secret '$BACKUP_SECRET': No such file or directory" >&2
+            exit 1
+        elif [ ! -f "$BACKUP_SECRET" ]; then
+            echo "Invalid Borg secret '$BACKUP_SECRET': Not a file" >&2
+            exit 1
+        fi
+    fi
+
+    # check lock file
+    if [ -e "$BACKUP_HOME/.backup.lock" ]; then
+        if [ ! -f "$BACKUP_HOME/.backup.lock" ]; then
+            echo "Invalid lock file '$BACKUP_HOME/.backup.lock': Not a file" >&2
+            exit 1
+        fi
+    fi
+}
+
+run_borg() {
+    # prepare `podman run` options
+    local OPTIONS=()
+
+    if [ -z "$VERBOSE" ]; then
+        OPTIONS+=( --quiet )
+    fi
+
+    OPTIONS+=( --interactive )
+
+    while [ $# -gt 0 ] && [ "${1:1:1}" == "-" ]; do
+        OPTIONS+=( "$1" )
+        shift
+    done
+
+    if [ -n "$BACKUP_CONTAINER" ]; then
+        OPTIONS+=( --name "$BACKUP_CONTAINER" )
+    fi
+
+    OPTIONS+=( --pull "always" --rm )
+    OPTIONS+=( --net "slirp4netns" )
+    OPTIONS+=( --security-opt label="disable" )
+    OPTIONS+=( --device "/dev/fuse" --cap-add "SYS_ADMIN" )
+    OPTIONS+=( --log-driver "none" )
+
+    # prepare `podman run` params
+    local PARAMS=()
+
+    PARAMS+=( --mount type="bind",src="$BACKUP_HOME/backup",dst="/root/borg/backup",ro="true" )
+    PARAMS+=( --mount type="bind",src="$BACKUP_HOME/restore",dst="/root/borg/restore" )
+    PARAMS+=( --mount type="bind",src="$BACKUP_HOME/repo",dst="/root/borg/repo" )
+    PARAMS+=( --mount type="bind",src="$BACKUP_HOME/cache",dst="/root/.cache/borg" )
+    PARAMS+=( --mount type="bind",src="$BACKUP_HOME/config/backup",dst="/root/.config/backup" )
+    PARAMS+=( --mount type="bind",src="$BACKUP_HOME/config/borg",dst="/root/.config/borg" )
+    PARAMS+=( --mount type="bind",src="$BACKUP_HOME/config/ssh",dst="/root/.ssh" )
+
+    if [ -n "$BACKUP_SECRET" ]; then
+        PARAMS+=( --secret "borg_pass",type="mount",target="borg_pass",uid="0",gid="0",mode="0400" )
+
+        cmd podman secret create "borg_pass" "$BACKUP_SECRET" > /dev/null
+        TRAPS_EXIT+=( 'cmd podman secret rm "borg_pass" > /dev/null' )
+    fi
+
+    # execute `podman run`
+    local EXEC=( podman run "${OPTIONS[@]}" "${PARAMS[@]}" "$BACKUP_IMAGE" )
+
+    if [ "$BACKUP_USER" != "$(id -un)" ]; then
+        cmd sudo --login --user "$BACKUP_USER" -- "${EXEC[@]}" "$@"
+    else
+        cmd "${EXEC[@]}" "$@"
+    fi
+}
+
+# prepare cleanup trap
+TRAPS_EXIT=()
+
+function trap_exit {
+    EXIT=$?
+
+    for (( INDEX=${#TRAPS_EXIT[@]}-1 ; INDEX >= 0 ; INDEX-- )); do
+        eval "${TRAPS_EXIT[$INDEX]}"
+    done
+
+    trap - ERR EXIT
+    exit $EXIT
+}
+
+trap 'trap_exit' ERR EXIT
+
+# read parameters
+CONTAINER_CONFIG="config.env"
+CONFIG_FILE="config.env"
+ACTION=""
+VERBOSE=""
+
+while [ $# -gt 0 ]; do
+    if [ "$1" == "--help" ]; then
+        print_help
+        exit
+    elif [ "$1" == "--verbose" ] || [ "$1" == "-v" ]; then
+        VERBOSE="yes"
+        shift
+    elif [ "$1" == "--container" ]; then
+        if [ -z "${2:-}" ]; then
+            echo "Missing required argument 'CONTAINER_CONFIG' for option '--container'" >&2
+            exit 1
+        fi
+
+        CONTAINER_CONFIG="$2"
+        shift 2
+    elif [ "$1" == "--config" ] || [ "$1" == "-c" ]; then
+        if [ -z "${2:-}" ]; then
+            echo "Missing required argument 'CONFIG' for option '--config'" >&2
+            exit 1
+        fi
+
+        CONFIG_FILE="$2"
+        shift 2
+    elif [ "${1:0:1}" == "-" ]; then
+        echo "Unknown option: $1" >&2
+        exit 1
+    elif [ -z "$ACTION" ]; then
+        ACTION="$1"
+        shift
+
+        break
+    fi
+done
+
+if [ -z "$ACTION" ]; then
+    echo "Missing required argument 'ACTION'" >&2
+    echo >&2
+    print_usage >&2
+    exit 1
+fi
+
+# check whether usage info should be printed
+PRINT_HELP=""
+if [ "$ACTION" == "help" ]; then
+    if [ $# -eq 0 ]; then
+        print_help
+        exit
+    fi
+
+    if [ "$1" == "--help" ]; then
+        echo "Usage:"
+        echo "  $APP_NAME [--container CONTAINER_CONFIG] help [ACTION]"
+        exit
+    fi
+
+    if [ -z "$1" ]; then
+        echo "Missing required argument 'ACTION' for action 'help'" >&2
+        exit 1
+    fi
+
+    PRINT_HELP="yes"
+    ACTION="$1"
+    shift
+elif [ "${1:-}" == "--help" ]; then
+    PRINT_HELP="yes"
+    shift
+fi
+
+# source config file
+if [ "${CONTAINER_CONFIG:0:1}" != "/" ]; then
+    CONTAINER_CONFIG="$CONTAINER_CONFIG_DIR/$CONTAINER_CONFIG"
+fi
+
+if [ ! -e "$CONTAINER_CONFIG" ]; then
+    echo "Invalid container config file '$CONTAINER_CONFIG': No such file or directory" >&2
+    return 1
+elif [ ! -f "$CONTAINER_CONFIG" ]; then
+    echo "Invalid container config file '$CONTAINER_CONFIG': Not a file" >&2
+    return 1
+elif [ ! -r "$CONTAINER_CONFIG" ]; then
+    echo "Invalid container config file '$CONTAINER_CONFIG': Permission denied" >&2
+    return 1
+fi
+
+source "$CONTAINER_CONFIG"
+
+if [ -z "${BACKUP_IMAGE:-}" ]; then
+    echo "Invalid container config file '$CONTAINER_CONFIG': Missing required config variable 'BACKUP_IMAGE'" >&2
+    exit 1
+elif [ -z "${BACKUP_HOME:-}" ]; then
+    echo "Invalid container config file '$CONTAINER_CONFIG': Missing required config variable 'BACKUP_HOME'" >&2
+    exit 1
+fi
+
+# set default config values
+[[ "$BACKUP_IMAGE" == *:* ]] || [[ "$BACKUP_IMAGE" == *@* ]] || BACKUP_IMAGE="$BACKUP_IMAGE:latest"
+[ -v BACKUP_CONTAINER ] || BACKUP_CONTAINER=""
+[ -n "${BACKUP_USER:-}" ] || BACKUP_USER="$(id -un)"
+[ -v BACKUP_SECRET ] || BACKUP_SECRET=""
+
+# check Borg container
+check_borg
+
+# acquire lock
+LOCK_FILE="$BACKUP_HOME/.backup.lock"
+
+if [ -e "$LOCK_FILE" ]; then
+    echo "Failed to acquire lock '$LOCK_FILE': File exists" >&2
+    exit 1
+fi
+
+[ -z "$VERBOSE" ] || echo + "date -R > $(quote "$LOCK_FILE")" >&2
+date -R > "$LOCK_FILE"
+TRAPS_EXIT+=( "cmd rm -f ${LOCK_FILE@Q}" )
+
+# open Bash shell, if requested (action "shell")
+if [ "$ACTION" == "shell" ]; then
+    if [ -n "$PRINT_HELP" ]; then
+        echo "Usage:"
+        echo "  $APP_NAME [--container CONTAINER_CONFIG] shell"
+        exit
+    fi
+
+    run_borg --tty "bash"
+    exit $?
+fi
+
+# print usage info, if requested
+if [ -n "$PRINT_HELP" ]; then
+    run_borg "backup" "help" "$ACTION"
+    exit $?
+fi
+
+# run Borg container
+OPTIONS=( --config "$CONFIG_FILE" )
+[ -z "$VERBOSE" ] || OPTIONS+=( --verbose )
+
+run_borg "backup" "${OPTIONS[@]}" "$ACTION" "$@"
+exit $?
