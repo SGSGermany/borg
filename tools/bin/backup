@@ -319,19 +319,19 @@ fi
 [ -n "${BACKUP_USER:-}" ] || BACKUP_USER="$(id -un)"
 [ -v BACKUP_SECRET ] || BACKUP_SECRET=""
 
+LOCK_FILE="$BACKUP_HOME/.backup.lock"
+
 # check Borg container
 check_borg
 
 # acquire lock
-LOCK_FILE="$BACKUP_HOME/.backup.lock"
-
 if [ -e "$LOCK_FILE" ]; then
     echo "Failed to acquire lock '$LOCK_FILE': File exists" >&2
     exit 1
 fi
 
-[ -z "$VERBOSE" ] || echo + "date -R > $(quote "$LOCK_FILE")" >&2
-date -R > "$LOCK_FILE"
+[ -z "$VERBOSE" ] || echo + "{ date -R; echo \"\$\$\"; } > $(quote "$LOCK_FILE")" >&2
+{ date -R; echo "$$"; } > "$LOCK_FILE"
 TRAPS_EXIT+=( "cmd rm -f ${LOCK_FILE@Q}" )
 
 # open Bash shell, if requested (action "shell")

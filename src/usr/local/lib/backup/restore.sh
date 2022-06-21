@@ -11,7 +11,7 @@
 
 action_help() {
     echo "Usage:"
-    echo "  $APP_NAME [--config CONFIG] restore [PATH]..."
+    echo "  $APP_NAME [--config CONFIG] restore ::ARCHIVE [PATH]..."
     echo
     echo "See also:"
     echo "  borg-extract(1)"
