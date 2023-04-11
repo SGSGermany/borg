@@ -45,7 +45,7 @@ print_help() {
 }
 
 # read parameters
-CONFIG_FILE="config.env"
+CONFIG_FILE="${BACKUP_CONFIG:-config.env}"
 ACTION=""
 VERBOSE=""
 

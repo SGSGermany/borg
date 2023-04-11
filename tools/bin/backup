@@ -154,7 +154,12 @@ run_borg() {
 
     OPTIONS+=( --interactive )
 
-    while [ $# -gt 0 ] && [ "${1:1:1}" == "-" ]; do
+    while [ $# -gt 0 ]; do
+        if [ "$1" == "--" ]; then
+            shift
+            break
+        fi
+
         OPTIONS+=( "$1" )
         shift
     done
@@ -215,7 +220,7 @@ trap 'trap_exit' ERR EXIT
 
 # read parameters
 CONTAINER_CONFIG="config.env"
-CONFIG_FILE="config.env"
+CONFIG_FILE="${BACKUP_CONFIG:-}"
 ACTION=""
 VERBOSE=""
 
@@ -342,19 +347,22 @@ if [ "$ACTION" == "shell" ]; then
         exit
     fi
 
-    run_borg --tty "bash"
+    run_borg --tty --env BACKUP_CONFIG="$CONFIG_FILE" -- \
+        "bash"
     exit $?
 fi
 
 # print usage info, if requested
 if [ -n "$PRINT_HELP" ]; then
-    run_borg "backup" "help" "$ACTION"
+    run_borg -- \
+        "backup" "help" "$ACTION"
     exit $?
 fi
 
 # run Borg container
-OPTIONS=( --config "$CONFIG_FILE" )
+OPTIONS=( --config "${CONFIG_FILE:-config.env}" )
 [ -z "$VERBOSE" ] || OPTIONS+=( --verbose )
 
-run_borg "backup" "${OPTIONS[@]}" "$ACTION" "$@"
+run_borg -- \
+    "backup" "${OPTIONS[@]}" "$ACTION" "$@"
 exit $?
