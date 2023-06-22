@@ -11,7 +11,7 @@
 # License-Filename: LICENSE
 
 set -eu -o pipefail
-export LC_ALL=C
+export LC_ALL=C.UTF-8
 
 [ -v CI_TOOLS ] && [ "$CI_TOOLS" == "SGSGermany" ] \
     || { echo "Invalid build environment: Environment variable 'CI_TOOLS' not set or invalid" >&2; exit 1; }
@@ -56,14 +56,13 @@ cmd buildah run "$CONTAINER" -- \
         "/root/borg/repo" \
         "/root/borg/restore"
 
-cmd buildah run "$CONTAINER" -- \
-    chmod 755 \
-        "/usr/local/bin/backup" \
-        "/usr/local/bin/borg-pass"
-
 VERSION="$(pkg_version "$CONTAINER" borg)"
 
 cleanup "$CONTAINER"
+
+cmd buildah config \
+    --env BORG_VERSION="$VERSION" \
+    "$CONTAINER"
 
 cmd buildah config \
     --volume "/root/.cache/borg" \

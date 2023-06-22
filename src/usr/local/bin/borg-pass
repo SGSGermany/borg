@@ -12,9 +12,7 @@
 
 if ! [ -e "/run/secrets/borg_pass" ]; then
     exit 0
-fi
-
-if ! [ -f "/run/secrets/borg_pass" ]; then
+elif ! [ -f "/run/secrets/borg_pass" ]; then
     echo "Failed to read 'borg_pass' secret: Not a file" >&2
     exit 1
 fi
