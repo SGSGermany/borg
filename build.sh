@@ -58,6 +58,9 @@ cmd buildah run "$CONTAINER" -- \
 
 VERSION="$(pkg_version "$CONTAINER" borg)"
 
+echo + "[[ ${VERSION@Q} == $VERSION_PATTERN ]]" >&2
+[[ "$VERSION" == $VERSION_PATTERN ]]
+
 cleanup "$CONTAINER"
 
 cmd buildah config \
