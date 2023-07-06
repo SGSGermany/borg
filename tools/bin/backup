@@ -167,10 +167,10 @@ run_borg() {
     PARAMS+=( --mount type="bind",src="$BACKUP_HOME/config/ssh",dst="/root/.ssh" )
 
     if [ -n "$BACKUP_SECRET" ]; then
-        PARAMS+=( --secret "borg_pass",type="mount",target="borg_pass",uid="0",gid="0",mode="0400" )
+        PARAMS+=( --secret "$BACKUP_SECRET_ID",type="mount",target="borg_pass",uid="0",gid="0",mode="0400" )
 
-        cmd podman secret create "borg_pass" "$BACKUP_SECRET" > /dev/null
-        TRAPS_EXIT+=( 'cmd podman secret rm "borg_pass" > /dev/null' )
+        cmd podman secret create "$BACKUP_SECRET_ID" "$BACKUP_SECRET" > /dev/null
+        TRAPS_EXIT+=( "cmd podman secret rm ${BACKUP_SECRET_ID@Q} > /dev/null" )
     fi
 
     # execute `podman run`
@@ -317,6 +317,7 @@ fi
 # evaluate config
 LOCK_FILE="$BACKUP_HOME/.backup.$BACKUP_CONFIG.lock"
 BACKUP_CONTAINER="${BACKUP_CONTAINER_PREFIX}_$BACKUP_CONFIG"
+BACKUP_SECRET_ID="${BACKUP_CONTAINER}_pass"
 
 BORG_REPO_LOCAL=""
 if ! [[ "$BORG_REPO" =~ ^[a-zA-Z][a-zA-Z0-9.+-]*"://" ]]; then
