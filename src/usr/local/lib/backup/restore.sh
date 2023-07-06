@@ -11,7 +11,7 @@
 
 action_help() {
     echo "Usage:"
-    echo "  $APP_NAME [--config CONFIG] restore ::ARCHIVE [PATH]..."
+    echo "  $APP_NAME [OPTIONS]... restore ::ARCHIVE [PATHS]..."
     echo
     echo "See also:"
     echo "  borg-extract(1)"
@@ -19,7 +19,8 @@ action_help() {
 }
 
 action_info() {
-    echo + "BORG_REPO=${BORG_REPO@Q}" >&2
+    echo + "BORG_REPO=$BORG_REPO_INFO" >&2
+    echo + "BACKUP_RESTORE=$BACKUP_RESTORE_INFO" >&2
 }
 
 action_exec() {
@@ -29,7 +30,7 @@ action_exec() {
     export BORG_REPO="$BORG_REPO"
     export BORG_PASSCOMMAND="/usr/local/bin/borg-pass"
 
-    cmd cd "$BORG_RESTORE"
+    cmd cd "$BACKUP_RESTORE"
 
     cmd borg extract "${BORG_PARAMS[@]}" "$@" \
         || { BORG_STATUS=$?; true; }

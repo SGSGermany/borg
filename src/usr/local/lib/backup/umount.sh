@@ -11,7 +11,7 @@
 
 action_help() {
     echo "Usage:"
-    echo "  $APP_NAME [--config CONFIG] umount"
+    echo "  $APP_NAME [OPTIONS]... umount"
     echo
     echo "See also:"
     echo "  borg-umount(1)"
@@ -19,8 +19,8 @@ action_help() {
 }
 
 action_info() {
-    echo + "BORG_REPO=${BORG_REPO@Q}" >&2
-    echo + "BORG_MOUNT=${BORG_MOUNT@Q}" >&2
+    echo + "BORG_REPO=$BORG_REPO_INFO" >&2
+    echo + "BORG_MOUNT=$BORG_MOUNT_INFO" >&2
 }
 
 action_exec() {

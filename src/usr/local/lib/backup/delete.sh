@@ -11,7 +11,7 @@
 
 action_help() {
     echo "Usage:"
-    echo "  $APP_NAME [--config CONFIG] delete [::ARCHIVE [ARCHIVE]...]"
+    echo "  $APP_NAME [OPTIONS]... delete [::ARCHIVE [ARCHIVES]...]"
     echo
     echo "See also:"
     echo "  borg-delete(1)"
@@ -19,7 +19,7 @@ action_help() {
 }
 
 action_info() {
-    echo + "BORG_REPO=${BORG_REPO@Q}" >&2
+    echo + "BORG_REPO=$BORG_REPO_INFO" >&2
 }
 
 action_exec() {

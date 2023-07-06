@@ -22,7 +22,7 @@ CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/backup"
 
 print_usage() {
     echo "Usage:"
-    echo "  $APP_NAME [--verbose] [--config CONFIG] ACTION [ARGUMENT]..."
+    echo "  $APP_NAME [OPTIONS]... ACTION [ARGUMENTS]..."
 }
 
 print_help() {
@@ -42,10 +42,21 @@ print_help() {
     echo "  borg     Runs an arbitrary Borg command."
     echo "  configs  Prints a list of available backup configs."
     echo "  help     Prints usage info about an action and exits."
+    echo
+    print_options
+}
+
+print_options() {
+    echo "Help options:"
+    echo "      --help     display this help and exit"
+    echo
+    echo "Application options:"
+    echo "  -v, --verbose               explain what is being done"
+    echo "  -c, --config BACKUP_CONFIG  specify the backup config file to use"
 }
 
 # read parameters
-CONFIG_FILE="${BACKUP_CONFIG:-config.env}"
+BACKUP_CONFIG="${BACKUP_CONFIG:-config}"
 ACTION=""
 VERBOSE=""
 
@@ -62,7 +73,7 @@ while [ $# -gt 0 ]; do
             exit 1
         fi
 
-        CONFIG_FILE="$2"
+        BACKUP_CONFIG="$2"
         shift 2
     elif [ "${1:0:1}" == "-" ]; then
         echo "Unknown option: $1" >&2
@@ -92,7 +103,9 @@ if [ "$ACTION" == "help" ]; then
 
     if [ "$1" == "--help" ]; then
         echo "Usage:"
-        echo "  $APP_NAME help [ACTION]"
+        echo "  $APP_NAME [OPTIONS]... help [ACTION]"
+        echo
+        print_options
         exit
     fi
 
@@ -126,36 +139,59 @@ source "$LIB_DIR/$ACTION.sh"
 # print usage info, if requested
 if [ -n "$PRINT_HELP" ]; then
     action_help
+    echo
+    print_options
     exit
 fi
 
 # source config
-if [ "${CONFIG_FILE:0:1}" != "/" ]; then
-    CONFIG_FILE="$CONFIG_DIR/$CONFIG_FILE"
-fi
-
-if [ ! -e "$CONFIG_FILE" ]; then
-    echo "Invalid config file '$CONFIG_FILE': No such file or directory" >&2
-    exit 1
-elif [ ! -f "$CONFIG_FILE" ]; then
-    echo "Invalid config file '$CONFIG_FILE': Not a file" >&2
-    exit 1
-elif [ ! -r "$CONFIG_FILE" ]; then
-    echo "Invalid config file '$CONFIG_FILE': Permission denied" >&2
+if ! [[ "$BACKUP_CONFIG" =~ ^[a-zA-Z0-9][a-zA-Z0-9._-]*$ ]]; then
+    echo "Invalid argument 'BACKUP_CONFIG': $BACKUP_CONFIG" >&2
     exit 1
 fi
 
-source "$CONFIG_FILE"
+BACKUP_CONFIG_FILE="$CONFIG_DIR/$BACKUP_CONFIG.env"
+if [ ! -e "$BACKUP_CONFIG_FILE" ]; then
+    echo "Invalid backup config file '$BACKUP_CONFIG_FILE': No such file or directory" >&2
+    exit 1
+elif [ ! -f "$BACKUP_CONFIG_FILE" ]; then
+    echo "Invalid backup config file '$BACKUP_CONFIG_FILE': Not a file" >&2
+    exit 1
+elif [ ! -r "$BACKUP_CONFIG_FILE" ]; then
+    echo "Invalid backup config file '$BACKUP_CONFIG_FILE': Permission denied" >&2
+    exit 1
+fi
+
+source "$BACKUP_CONFIG_FILE"
 
 # set default config values
-[ -n "${BORG_REPO:-}" ] || BORG_REPO="$HOME/borg/repo"
 [ -n "${BORG_CREATE_ARCHIVE:-}" ] || BORG_CREATE_ARCHIVE="{utcnow:%Y-%m-%dT%H:%M:%SZ}"
 [ -v BORG_CREATE_PATHS ] && [ ${#BORG_CREATE_PATHS[@]} -gt 0 ] || BORG_CREATE_PATHS=( "/" )
 [ -v BORG_CREATE_EXCLUDE ] || BORG_CREATE_EXCLUDE=()
-[ -v BORG_PRUNE_PREFIX ] || BORG_PRUNE_PREFIX=""
+[ -v BORG_PRUNE_PATTERN ] || BORG_PRUNE_PATTERN=""
 [ -v BORG_PRUNE_KEEPS ] || BORG_PRUNE_KEEPS=()
-[ -n "${BORG_MOUNT:-}" ] || BORG_MOUNT="$HOME/borg/mount"
-[ -n "${BORG_RESTORE:-}" ] || BORG_RESTORE="$HOME/borg/restore"
+
+# prepare path variables
+BACKUP_PATH_HOST="${BACKUP_PATH_HOST:-}"
+BACKUP_PATH="$HOME/borg/backup"
+BACKUP_PATH_INFO="${BACKUP_PATH_HOST@Q} (mounted at ${BACKUP_PATH@Q})"
+
+BACKUP_RESTORE_HOST="${BACKUP_RESTORE_HOST:-}"
+BACKUP_RESTORE="$HOME/borg/restore"
+BACKUP_RESTORE_INFO="${BACKUP_RESTORE_HOST@Q} (mounted at ${BACKUP_RESTORE@Q})"
+
+if [ -n "${BORG_REPO:-}" ] && [[ "$BORG_REPO" =~ ^[a-zA-Z][a-zA-Z0-9.+-]*"://" ]] && [ "${BORG_REPO:0:7}" != "file://" ]; then
+    BORG_REPO_HOST=""
+    BORG_REPO="$BORG_REPO"
+    BORG_REPO_INFO="${BORG_REPO@Q}"
+else
+    BORG_REPO_HOST="${BORG_REPO_HOST:-}"
+    BORG_REPO="$HOME/borg/repo"
+    BORG_REPO_INFO="${BORG_REPO_HOST@Q} (mounted at ${BORG_REPO@Q})"
+fi
+
+BORG_MOUNT="$HOME/borg/mount"
+BORG_MOUNT_INFO="${BORG_MOUNT@Q}"
 
 # call action
 if [ -n "$VERBOSE" ]; then

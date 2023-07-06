@@ -11,7 +11,7 @@
 
 action_help() {
     echo "Usage:"
-    echo "  $APP_NAME configs"
+    echo "  $APP_NAME [OPTIONS]... configs"
 }
 
 action_info() {

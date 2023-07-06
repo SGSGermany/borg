@@ -11,7 +11,7 @@
 
 action_help() {
     echo "Usage:"
-    echo "  $APP_NAME [--config CONFIG] create [--comment COMMENT] [ARCHIVE]"
+    echo "  $APP_NAME [OPTIONS]... create [--comment COMMENT] [ARCHIVE]"
     echo
     echo "See also:"
     echo "  borg-create(1)"
@@ -19,7 +19,8 @@ action_help() {
 }
 
 action_info() {
-    echo + "BORG_REPO=${BORG_REPO@Q}" >&2
+    echo + "BORG_REPO=$BORG_REPO_INFO" >&2
+    echo + "BACKUP_PATH=$BACKUP_PATH_INFO" >&2
 }
 
 action_exec() {
@@ -62,7 +63,9 @@ action_exec() {
     # file and directory exclusion
     BORG_ARGS+=( --exclude-caches --exclude-nodump )
     for BORG_CREATE_EXCLUDE in "${BORG_CREATE_EXCLUDE[@]}"; do
-        BORG_ARGS+=( --exclude "sh:./${BORG_CREATE_EXCLUDE##/}" )
+        [[ "$BORG_CREATE_EXCLUDE" =~ ^[a-z]{2}: ]] \
+            || BORG_CREATE_EXCLUDE="sh:./${BORG_CREATE_EXCLUDE##/}"
+        BORG_ARGS+=( --exclude "$BORG_CREATE_EXCLUDE" )
     done
 
     # pass command line options
@@ -75,6 +78,8 @@ action_exec() {
     fi
 
     # create backup
+    cmd cd "$BACKUP_PATH"
+
     cmd borg create "${BORG_PARAMS[@]}" \
         "$BORG_REPO"::"$BORG_CREATE_ARCHIVE" \
         "${BORG_ARGS[@]}" \

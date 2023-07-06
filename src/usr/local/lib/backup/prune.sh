@@ -11,7 +11,7 @@
 
 action_help() {
     echo "Usage:"
-    echo "  $APP_NAME [--config CONFIG] prune [ARCHIVE_PREFIX]"
+    echo "  $APP_NAME [OPTIONS]... prune [ARCHIVE_PATTERN]"
     echo
     echo "See also:"
     echo "  borg-prune(1)"
@@ -19,7 +19,7 @@ action_help() {
 }
 
 action_info() {
-    echo + "BORG_REPO=${BORG_REPO@Q}" >&2
+    echo + "BORG_REPO=$BORG_REPO_INFO" >&2
 }
 
 action_exec() {
@@ -37,12 +37,12 @@ action_exec() {
     export BORG_REPO="$BORG_REPO"
     export BORG_PASSCOMMAND="/usr/local/bin/borg-pass"
 
-    # use custom archive name prefix
-    [ $# -eq 0 ] || BORG_PRUNE_PREFIX="$1"
+    # use custom archive name pattern
+    [ $# -eq 0 ] || BORG_PRUNE_PATTERN="$1"
 
     # prune archives
     cmd borg prune "${BORG_PRUNE_PARAMS[@]}" \
-        --prefix "$BORG_PRUNE_PREFIX" \
+        --glob-archives "${BORG_PRUNE_PATTERN:-*}" \
         "${BORG_PRUNE_KEEPS[@]}" \
         || { BORG_PRUNE_STATUS=$?; true; }
 

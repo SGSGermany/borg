@@ -11,7 +11,7 @@
 
 action_help() {
     echo "Usage:"
-    echo "  $APP_NAME [--config CONFIG] borg COMMAND [ARGUMENT]..."
+    echo "  $APP_NAME [OPTIONS]... borg COMMAND [ARGUMENTS]..."
     echo
     echo "See also:"
     echo "  borg(1)"
@@ -19,7 +19,7 @@ action_help() {
 }
 
 action_info() {
-    echo + "BORG_REPO=${BORG_REPO@Q}" >&2
+    echo + "BORG_REPO=$BORG_REPO_INFO" >&2
 }
 
 action_exec() {
