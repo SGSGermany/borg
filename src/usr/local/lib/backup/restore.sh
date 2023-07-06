@@ -24,7 +24,7 @@ action_info() {
 }
 
 action_exec() {
-    local BORG_PARAMS=()
+    local BORG_PARAMS=( --sparse )
     local BORG_STATUS=0
 
     export BORG_REPO="$BORG_REPO"
