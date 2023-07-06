@@ -130,8 +130,10 @@ run_borg() {
     OPTIONS+=( --interactive )
 
     OPTIONS+=( --name "$BACKUP_CONTAINER" )
+    OPTIONS+=( --replace --rm )
 
-    OPTIONS+=( --pull "always" --rm )
+    OPTIONS+=( --pull "always" )
+
     OPTIONS+=( --net "slirp4netns" )
     OPTIONS+=( --security-opt label="disable" )
     OPTIONS+=( --device "/dev/fuse" --cap-add "SYS_ADMIN" )
