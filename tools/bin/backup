@@ -171,7 +171,7 @@ run_borg() {
     if [ -n "$BACKUP_SECRET" ]; then
         PARAMS+=( --secret "$BACKUP_SECRET_ID",type="mount",target="borg_pass",uid="0",gid="0",mode="0400" )
 
-        cmd podman secret create "$BACKUP_SECRET_ID" "$BACKUP_SECRET" > /dev/null
+        cmd podman secret create --replace "$BACKUP_SECRET_ID" "$BACKUP_SECRET" > /dev/null
         TRAPS_EXIT+=( "cmd podman secret rm ${BACKUP_SECRET_ID@Q} > /dev/null" )
     fi
 
