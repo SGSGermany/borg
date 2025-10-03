@@ -31,6 +31,7 @@ print_help() {
     echo "  restore  Restores files from a named archive."
     echo "  delete   Deletes archives from a Borg repository."
     echo "  prune    Prunes archives according to the retention policy."
+    echo "  compact  Frees repository space by compacting segments."
     echo "  list     Lists all archives in a Borg repository."
     echo "  info     Displays information about a Borg repository or its archives."
     echo "  borg     Runs an arbitrary Borg command."

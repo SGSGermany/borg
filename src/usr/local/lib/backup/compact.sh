@@ -11,11 +11,11 @@
 
 action_help() {
     echo "Usage:"
-    echo "  $APP_NAME [OPTIONS]... prune [ARCHIVE_PATTERN]"
+    echo "  $APP_NAME [OPTIONS]... compact"
     echo
     echo "See also:"
-    echo "  borg-prune(1)"
-    echo "  https://borgbackup.readthedocs.io/en/stable/usage/prune.html"
+    echo "  borg-compact(1)"
+    echo "  https://borgbackup.readthedocs.io/en/stable/usage/compact.html"
 }
 
 action_info() {
@@ -23,23 +23,13 @@ action_info() {
 }
 
 action_exec() {
-    if [ "${#BORG_PRUNE_KEEPS[@]}" -eq 0 ]; then
-        # don't prune any actual archives, but still remove old checkpoints
-        BORG_PRUNE_KEEPS=( --keep-last 1000000000 )
-    fi
-
-    local BORG_PARAMS=( -v --stats --list --show-rc )
+    local BORG_PARAMS=( -v --show-rc )
     local BORG_STATUS=0
 
     export BORG_REPO="$BORG_REPO"
     export BORG_PASSCOMMAND="/usr/local/bin/borg-pass"
 
-    # use custom archive name pattern
-    [ $# -eq 0 ] || BORG_PRUNE_PATTERN="$1"
-
-    cmd borg prune "${BORG_PARAMS[@]}" \
-        --glob-archives "${BORG_PRUNE_PATTERN:-*}" \
-        "${BORG_PRUNE_KEEPS[@]}" \
+    cmd borg compact "${BORG_PARAMS[@]}" \
         || { BORG_STATUS=$?; true; }
 
     return $BORG_STATUS

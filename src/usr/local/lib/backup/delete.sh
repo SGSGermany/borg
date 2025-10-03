@@ -23,28 +23,14 @@ action_info() {
 }
 
 action_exec() {
-    local BORG_DELETE_PARAMS=( -v --stats --show-rc )
-    local BORG_DELETE_STATUS=0
-
-    local BORG_COMPACT_PARAMS=( -v --show-rc )
-    local BORG_COMPACT_STATUS=0
+    local BORG_PARAMS=( -v --stats --show-rc )
+    local BORG_STATUS=0
 
     export BORG_REPO="$BORG_REPO"
     export BORG_PASSCOMMAND="/usr/local/bin/borg-pass"
 
-    # delete archive(s)
-    cmd borg delete "${BORG_DELETE_PARAMS[@]}" "$@" \
-        || { BORG_DELETE_STATUS=$?; true; }
+    cmd borg delete "${BORG_PARAMS[@]}" "$@" \
+        || { BORG_STATUS=$?; true; }
 
-    [ $BORG_DELETE_STATUS -lt 2 ] || return $BORG_DELETE_STATUS
-
-    # compact repo
-    if [ $# -eq 0 ] || { [ $# -eq 1 ] && [ "$1" == "::" ]; }; then
-        return
-    fi
-
-    cmd borg compact "${BORG_COMPACT_PARAMS[@]}" \
-        || { BORG_COMPACT_STATUS=$?; true; }
-
-    return $(( BORG_COMPACT_STATUS > BORG_DELETE_STATUS ? BORG_COMPACT_STATUS : BORG_DELETE_STATUS ))
+    return $BORG_STATUS
 }
