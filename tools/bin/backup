@@ -128,6 +128,9 @@ run_borg() {
     fi
 
     OPTIONS+=( --interactive )
+    if tty --quiet; then
+        OPTIONS+=( --tty )
+    fi
 
     OPTIONS+=( --name "$BACKUP_CONTAINER" )
     OPTIONS+=( --replace --rm )
