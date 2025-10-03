@@ -175,7 +175,7 @@ run_borg() {
         PARAMS+=( --secret "$BACKUP_SECRET_ID",type="mount",target="borg_pass",uid="0",gid="0",mode="0400" )
 
         cmd podman secret create --replace "$BACKUP_SECRET_ID" "$BACKUP_SECRET" > /dev/null
-        TRAPS_EXIT+=( "cmd podman secret rm ${BACKUP_SECRET_ID@Q} > /dev/null" )
+        TRAPS_EXIT+=( "podman secret rm ${BACKUP_SECRET_ID@Q} > /dev/null" )
     fi
 
     # execute `podman run`
@@ -195,6 +195,10 @@ function trap_exit {
     EXIT=$?
 
     for (( INDEX=${#TRAPS_EXIT[@]}-1 ; INDEX >= 0 ; INDEX-- )); do
+        if [ -n "$VERBOSE" ]; then
+            echo + "${TRAPS_EXIT[$INDEX]}" >&2
+        fi
+
         eval "${TRAPS_EXIT[$INDEX]}"
     done
 
@@ -320,8 +324,8 @@ fi
 [ -v BACKUP_SECRET ] || BACKUP_SECRET=""
 
 # evaluate config
-LOCK_FILE="$BACKUP_HOME/.backup.$BACKUP_CONFIG.lock"
-BACKUP_CONTAINER="${BACKUP_CONTAINER_PREFIX}_$BACKUP_CONFIG"
+BACKUP_CONTAINER="$BACKUP_CONTAINER_PREFIX"
+[ -z "$BACKUP_CONFIG" ] || BACKUP_CONTAINER+="_$BACKUP_CONFIG"
 BACKUP_SECRET_ID="${BACKUP_CONTAINER}_pass"
 
 BORG_REPO_LOCAL=""
@@ -356,7 +360,7 @@ fi
 
 [ -z "$VERBOSE" ] || echo + "{ date -R; echo \"\$\$\"; } > $(quote "$LOCK_FILE")" >&2
 { date -R; echo "$$"; } > "$LOCK_FILE"
-TRAPS_EXIT+=( "cmd rm -f ${LOCK_FILE@Q}" )
+TRAPS_EXIT+=( "rm -f ${LOCK_FILE@Q}" )
 
 # open Bash shell, if requested (action "shell")
 if [ "$ACTION" == "shell" ]; then
@@ -383,7 +387,8 @@ if [ -n "$PRINT_HELP" ]; then
 fi
 
 # run Borg container
-OPTIONS=( --config "${BACKUP_CONFIG:-config}" )
+OPTIONS=()
+[ -z "$BACKUP_CONFIG" ] || OPTIONS+=( --config "$BACKUP_CONFIG" )
 [ -z "$VERBOSE" ] || OPTIONS+=( --verbose )
 
 run_borg -- \

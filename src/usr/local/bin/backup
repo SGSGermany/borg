@@ -172,11 +172,11 @@ source "$BACKUP_CONFIG_FILE"
 [ -v BORG_PRUNE_KEEPS ] || BORG_PRUNE_KEEPS=()
 
 # prepare path variables
-BACKUP_PATH_HOST="${BACKUP_PATH_HOST:-}"
+BACKUP_PATH_HOST="${BACKUP_PATH_HOST:-<unknown>}"
 BACKUP_PATH="$HOME/borg/backup"
 BACKUP_PATH_INFO="${BACKUP_PATH_HOST@Q} (mounted at ${BACKUP_PATH@Q})"
 
-BACKUP_RESTORE_HOST="${BACKUP_RESTORE_HOST:-}"
+BACKUP_RESTORE_HOST="${BACKUP_RESTORE_HOST:-<unknown>}"
 BACKUP_RESTORE="$HOME/borg/restore"
 BACKUP_RESTORE_INFO="${BACKUP_RESTORE_HOST@Q} (mounted at ${BACKUP_RESTORE@Q})"
 
@@ -185,7 +185,7 @@ if [ -n "${BORG_REPO:-}" ] && [[ "$BORG_REPO" =~ ^[a-zA-Z][a-zA-Z0-9.+-]*"://" ]
     BORG_REPO="$BORG_REPO"
     BORG_REPO_INFO="${BORG_REPO@Q}"
 else
-    BORG_REPO_HOST="${BORG_REPO_HOST:-}"
+    BORG_REPO_HOST="${BORG_REPO_HOST:-<unknown>}"
     BORG_REPO="$HOME/borg/repo"
     BORG_REPO_INFO="${BORG_REPO_HOST@Q} (mounted at ${BORG_REPO@Q})"
 fi
