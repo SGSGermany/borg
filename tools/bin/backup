@@ -56,6 +56,7 @@ print_options() {
 print_host_options() {
     echo "Host options:"
     echo "      --container CONTAINER_CONFIG  specify the container config file to use"
+    echo "  -n, --no-block                    don't wait to acquire a lock, bail instead"
 }
 
 quote() {
@@ -214,6 +215,7 @@ CONTAINER_CONFIG="${CONTAINER_CONFIG:-config}"
 BACKUP_CONFIG="${BACKUP_CONFIG:-}"
 ACTION=""
 VERBOSE=""
+NO_BLOCK=""
 
 while [ $# -gt 0 ]; do
     if [ "$1" == "--help" ]; then
@@ -221,6 +223,9 @@ while [ $# -gt 0 ]; do
         exit
     elif [ "$1" == "--verbose" ] || [ "$1" == "-v" ]; then
         VERBOSE="yes"
+        shift
+    elif [ "$1" == "--no-block" ] || [ "$1" == "-n" ]; then
+        NO_BLOCK="yes"
         shift
     elif [ "$1" == "--container" ]; then
         if [ -z "${2:-}" ]; then
@@ -323,6 +328,7 @@ fi
 [ -n "${BORG_REPO:-}" ] || BORG_REPO="$BACKUP_HOME/repo"
 [ -n "${BACKUP_USER:-}" ] || BACKUP_USER="$(id -un)"
 [ -v BACKUP_SECRET ] || BACKUP_SECRET=""
+[ -n "${BACKUP_LOCK_FILE:-}" ] || BACKUP_LOCK_FILE="$BACKUP_HOME"
 
 # evaluate config
 BACKUP_CONTAINER="$BACKUP_CONTAINER_PREFIX"
@@ -351,17 +357,19 @@ check_path "$BACKUP_HOME/config/ssh" "SSH config directory" -e -d
 [ -z "$BACKUP_SECRET" ] \
     || check_path "$BACKUP_SECRET" "Borg secret" -e -f
 
-# acquire lock
-if [ -e "$LOCK_FILE" ]; then
-    check_path "$LOCK_FILE" "lock file" -f
+# acquire exclusive lock
+[ -e "$BACKUP_LOCK_FILE" ] || cmd touch "$BACKUP_LOCK_FILE"
 
-    echo "Failed to acquire lock '$LOCK_FILE': File exists" >&2
+[ -z "$VERBOSE" ] || echo + "exec 9< $(quote "$BACKUP_LOCK_FILE")" >&2
+exec 9< "$BACKUP_LOCK_FILE"
+TRAPS_EXIT+=( "exec 9<&-" )
+
+if [ -z "$NO_BLOCK" ]; then
+    cmd flock 9
+elif ! cmd flock -n 9; then
+    echo "Failed to acquire lock ${BACKUP_LOCK_FILE@Q}" >&2
     exit 1
 fi
-
-[ -z "$VERBOSE" ] || echo + "{ date -R; echo \"\$\$\"; } > $(quote "$LOCK_FILE")" >&2
-{ date -R; echo "$$"; } > "$LOCK_FILE"
-TRAPS_EXIT+=( "rm -f ${LOCK_FILE@Q}" )
 
 # open Bash shell, if requested (action "shell")
 if [ "$ACTION" == "shell" ]; then
