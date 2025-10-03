@@ -55,7 +55,7 @@ print_options() {
 
 print_host_options() {
     echo "Host options:"
-    echo "      --container CONTAINER_CONFIG  specify the container config file to use"
+    echo "  -C, --container CONTAINER_CONFIG  specify the container config file to use"
     echo "  -n, --no-block                    don't wait to acquire a lock, bail instead"
 }
 
@@ -227,7 +227,7 @@ while [ $# -gt 0 ]; do
     elif [ "$1" == "--no-block" ] || [ "$1" == "-n" ]; then
         NO_BLOCK="yes"
         shift
-    elif [ "$1" == "--container" ]; then
+    elif [ "$1" == "--container" ] || [ "$1" == "-C" ]; then
         if [ -z "${2:-}" ]; then
             echo "Missing required argument 'CONTAINER_CONFIG' for option '--container'" >&2
             exit 1
