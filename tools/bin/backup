@@ -301,10 +301,10 @@ check_path "$CONTAINER_CONFIG_FILE" "container config file" -e -f -r
 source "$CONTAINER_CONFIG_FILE"
 
 if [ -z "${BACKUP_IMAGE:-}" ]; then
-    echo "Invalid container config file '$CONTAINER_CONFIG_FILE': Missing required config variable 'BACKUP_IMAGE'" >&2
+    echo "Invalid container config file ${CONTAINER_CONFIG_FILE@Q}: Missing required config variable 'BACKUP_IMAGE'" >&2
     exit 1
 elif [ -z "${BACKUP_HOME:-}" ]; then
-    echo "Invalid container config file '$CONTAINER_CONFIG_FILE': Missing required config variable 'BACKUP_HOME'" >&2
+    echo "Invalid container config file ${CONTAINER_CONFIG_FILE@Q}: Missing required config variable 'BACKUP_HOME'" >&2
     exit 1
 fi
 
