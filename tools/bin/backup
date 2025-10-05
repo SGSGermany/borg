@@ -91,71 +91,71 @@ check_path() {
 }
 
 run_borg() {
+    # prepare `podman` global options
+    local OPTS=()
+    OPTS+=( --events-backend "none" )
+
+    # prepare `podman secret create` options
+    local SECRET_OPTS=()
+    SECRET_OPTS+=( --replace )
+
     # prepare `podman run` options
-    local OPTIONS=()
+    local RUN_OPTS=()
+    RUN_OPTS+=( --interactive )
+    ! tty --quiet || RUN_OPTS+=( --tty )
+    [ -n "$VERBOSE" ] || RUN_OPTS+=( --quiet )
 
-    if [ -z "$VERBOSE" ]; then
-        OPTIONS+=( --quiet )
-    fi
+    RUN_OPTS+=( --name "$BACKUP_CONTAINER" )
+    RUN_OPTS+=( --replace --rm )
 
-    OPTIONS+=( --interactive )
-    if tty --quiet; then
-        OPTIONS+=( --tty )
-    fi
+    RUN_OPTS+=( --pull "always" )
 
-    OPTIONS+=( --name "$BACKUP_CONTAINER" )
-    OPTIONS+=( --replace --rm )
-
-    OPTIONS+=( --pull "always" )
-
-    OPTIONS+=( --net "slirp4netns" )
-    OPTIONS+=( --security-opt label="disable" )
-    OPTIONS+=( --device "/dev/fuse" --cap-add "SYS_ADMIN" )
-    OPTIONS+=( --log-driver "none" )
+    RUN_OPTS+=( --net "slirp4netns" )
+    RUN_OPTS+=( --security-opt label="disable" )
+    RUN_OPTS+=( --device "/dev/fuse" --cap-add "SYS_ADMIN" )
 
     while [ $# -gt 0 ]; do
-        if [ "$1" == "--" ]; then
-            shift
-            break
-        fi
-
-        OPTIONS+=( "$1" )
+        [ "$1" != "--" ] || { shift; break; }
+        RUN_OPTS+=( "$1" )
         shift
     done
 
+    RUN_OPTS+=( --log-driver "none" --sdnotify "ignore" )
+
     # prepare `podman run` params
-    local PARAMS=()
+    local RUN_PARAMS=()
 
-    PARAMS+=( --env BACKUP_PATH_HOST="$BACKUP_PATH" )
-    PARAMS+=( --env BACKUP_RESTORE_HOST="$BACKUP_RESTORE" )
-    PARAMS+=( --env BORG_REPO_HOST="$BORG_REPO_LOCAL" )
+    RUN_PARAMS+=( --env BACKUP_PATH_HOST="$BACKUP_PATH" )
+    RUN_PARAMS+=( --env BACKUP_RESTORE_HOST="$BACKUP_RESTORE" )
+    RUN_PARAMS+=( --env BORG_REPO_HOST="$BORG_REPO_LOCAL" )
 
-    PARAMS+=( --mount type="bind",src="$BACKUP_PATH",dst="/root/borg/backup",ro="true" )
-    PARAMS+=( --mount type="bind",src="$BACKUP_RESTORE",dst="/root/borg/restore" )
+    RUN_PARAMS+=( --mount type="bind",src="$BACKUP_PATH",dst="/root/borg/backup",ro="true" )
+    RUN_PARAMS+=( --mount type="bind",src="$BACKUP_RESTORE",dst="/root/borg/restore" )
 
     if [ -n "$BORG_REPO_LOCAL" ]; then
-        PARAMS+=( --mount type="bind",src="$BORG_REPO_LOCAL",dst="/root/borg/repo" )
+        RUN_PARAMS+=( --mount type="bind",src="$BORG_REPO_LOCAL",dst="/root/borg/repo" )
     fi
 
-    PARAMS+=( --mount type="bind",src="$BACKUP_HOME/cache",dst="/root/.cache/borg" )
-    PARAMS+=( --mount type="bind",src="$BACKUP_HOME/config/backup",dst="/root/.config/backup",ro="true" )
-    PARAMS+=( --mount type="bind",src="$BACKUP_HOME/config/borg",dst="/root/.config/borg" )
-    PARAMS+=( --mount type="bind",src="$BACKUP_HOME/config/ssh",dst="/root/.ssh" )
+    RUN_PARAMS+=( --mount type="bind",src="$BACKUP_HOME/cache",dst="/root/.cache/borg" )
+    RUN_PARAMS+=( --mount type="bind",src="$BACKUP_HOME/config/backup",dst="/root/.config/backup",ro="true" )
+    RUN_PARAMS+=( --mount type="bind",src="$BACKUP_HOME/config/borg",dst="/root/.config/borg" )
+    RUN_PARAMS+=( --mount type="bind",src="$BACKUP_HOME/config/ssh",dst="/root/.ssh" )
 
+    # setup and run `podman secret`
     if [ -n "$BACKUP_SECRET" ]; then
-        PARAMS+=( --secret "$BACKUP_SECRET_ID",type="mount",target="borg_pass",uid="0",gid="0",mode="0400" )
+        RUN_PARAMS+=( --secret "$BACKUP_SECRET_ID",type="mount",target="borg_pass",uid="0",gid="0",mode="0400" )
 
-        cmd podman secret create --replace "$BACKUP_SECRET_ID" "$BACKUP_SECRET" > /dev/null
-        TRAPS_EXIT+=( "podman secret rm ${BACKUP_SECRET_ID@Q} > /dev/null" )
+        cmd podman secret create "${SECRET_OPTS[@]}" "${OPTS[@]}" "$BACKUP_SECRET_ID" "$BACKUP_SECRET" > /dev/null
+        TRAPS_EXIT+=( "podman secret rm $(quote "${OPTS[@]}" "$BACKUP_SECRET_ID") > /dev/null" )
     fi
 
     # execute `podman run`
-    local EXEC=( podman run "${OPTIONS[@]}" "${PARAMS[@]}" "$BACKUP_IMAGE" )
+    local RUN_EXEC=( podman run "${RUN_OPTS[@]}" "${OPTS[@]}" "${RUN_PARAMS[@]}" "$BACKUP_IMAGE" )
 
     if [ "$BACKUP_USER" != "$(id -un)" ]; then
-        cmd sudo --login --user "$BACKUP_USER" -- "${EXEC[@]}" "$@"
+        cmd sudo --login --user "$BACKUP_USER" -- "${RUN_EXEC[@]}" "$@"
     else
-        cmd "${EXEC[@]}" "$@"
+        cmd "${RUN_EXEC[@]}" "$@"
     fi
 }
 
