@@ -128,10 +128,10 @@ source "$LIB_DIR/helper.sh.inc"
 
 # source action
 if [ ! -e "$LIB_DIR/$ACTION.sh" ]; then
-    echo "Invalid action '$ACTION': Action not found" >&2
+    echo "Invalid action ${ACTION@Q}: Action not found" >&2
     exit 1
 elif [ ! -f "$LIB_DIR/$ACTION.sh" ] || [ ! -r "$LIB_DIR/$ACTION.sh" ]; then
-    echo "Invalid action '$ACTION': Action is invalid" >&2
+    echo "Invalid action ${ACTION@Q}: Action is invalid" >&2
     exit 1
 fi
 
@@ -153,13 +153,13 @@ fi
 
 BACKUP_CONFIG_FILE="$CONFIG_DIR/$BACKUP_CONFIG.env"
 if [ ! -e "$BACKUP_CONFIG_FILE" ]; then
-    echo "Invalid backup config file '$BACKUP_CONFIG_FILE': No such file or directory" >&2
+    echo "Invalid backup config file ${BACKUP_CONFIG_FILE@Q}: No such file or directory" >&2
     exit 1
 elif [ ! -f "$BACKUP_CONFIG_FILE" ]; then
-    echo "Invalid backup config file '$BACKUP_CONFIG_FILE': Not a file" >&2
+    echo "Invalid backup config file ${BACKUP_CONFIG_FILE@Q}: Not a file" >&2
     exit 1
 elif [ ! -r "$BACKUP_CONFIG_FILE" ]; then
-    echo "Invalid backup config file '$BACKUP_CONFIG_FILE': Permission denied" >&2
+    echo "Invalid backup config file ${BACKUP_CONFIG_FILE@Q}: Permission denied" >&2
     exit 1
 fi
 

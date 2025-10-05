@@ -71,52 +71,21 @@ quote() {
 }
 
 cmd() {
-    if [ -n "$VERBOSE" ]; then
-        echo + "$(quote "$@")" >&2
-    fi
-
+    [ -z "$VERBOSE" ] || echo + "$(quote "$@")" >&2
     "$@"
-    return $?
 }
 
 check_path() {
-    local FILE="$1"
-    local INFO="$2"
+    local FILE="$1" INFO="$2"
     shift 2
 
     for CHECK in "$@"; do
         case "$CHECK" in
-            "-e")
-                if [ ! -e "$FILE" ]; then
-                    echo "Invalid $INFO ${FILE@Q}: No such file or directory" >&2
-                    return 1
-                fi
-                ;;
-
-            "-f")
-                if [ ! -f "$FILE" ]; then
-                    echo "Invalid $INFO ${FILE@Q}: Not a file" >&2
-                    return 1
-                fi
-                ;;
-
-            "-d")
-                if [ ! -d "$FILE" ]; then
-                    echo "Invalid $INFO ${FILE@Q}: Not a directory" >&2
-                    return 1
-                fi
-                ;;
-
-            "-r")
-                if [ ! -r "$FILE" ]; then
-                    echo "Invalid $INFO ${FILE@Q}: Permission denied" >&2
-                    return 1
-                fi
-                ;;
-
-            *)
-                echo "Invalid $INFO ${FILE@Q}: Invalid argument" >&2
-                return 1
+            "-e") [ -e "$FILE" ] || { echo "Invalid $INFO ${FILE@Q}: No such file or directory" >&2; return 1; } ;;
+            "-f") [ -f "$FILE" ] || { echo "Invalid $INFO ${FILE@Q}: Not a file" >&2; return 1; } ;;
+            "-d") [ -d "$FILE" ] || { echo "Invalid $INFO ${FILE@Q}: Not a directory" >&2; return 1; } ;;
+            "-r") [ -r "$FILE" ] || { echo "Invalid $INFO ${FILE@Q}: Permission denied" >&2; return 1; } ;;
+            *) echo "Invalid $INFO ${FILE@Q}: Invalid argument" >&2; return 1 ;;
         esac
     done
 }
@@ -197,10 +166,7 @@ function trap_exit {
     EXIT=$?
 
     for (( INDEX=${#TRAPS_EXIT[@]}-1 ; INDEX >= 0 ; INDEX-- )); do
-        if [ -n "$VERBOSE" ]; then
-            echo + "${TRAPS_EXIT[$INDEX]}" >&2
-        fi
-
+        [ -z "$VERBOSE" ] || echo + "${TRAPS_EXIT[$INDEX]}" >&2
         eval "${TRAPS_EXIT[$INDEX]}"
     done
 
@@ -228,19 +194,11 @@ while [ $# -gt 0 ]; do
         NO_BLOCK="yes"
         shift
     elif [ "$1" == "--container" ] || [ "$1" == "-C" ]; then
-        if [ -z "${2:-}" ]; then
-            echo "Missing required argument 'CONTAINER_CONFIG' for option '--container'" >&2
-            exit 1
-        fi
-
+        [ -n "${2:-}" ] || { echo "Missing required argument 'CONTAINER_CONFIG' for option '--container'" >&2; exit 1; }
         CONTAINER_CONFIG="$2"
         shift 2
     elif [ "$1" == "--config" ] || [ "$1" == "-c" ]; then
-        if [ -z "${2:-}" ]; then
-            echo "Missing required argument 'BACKUP_CONFIG' for option '--config'" >&2
-            exit 1
-        fi
-
+        [ -n "${2:-}" ] || { echo "Missing required argument 'BACKUP_CONFIG' for option '--config'" >&2; exit 1; }
         BACKUP_CONFIG="$2"
         shift 2
     elif [ "${1:0:1}" == "-" ]; then
@@ -301,10 +259,10 @@ check_path "$CONTAINER_CONFIG_FILE" "container config file" -e -f -r
 source "$CONTAINER_CONFIG_FILE"
 
 if [ -z "${BACKUP_IMAGE:-}" ]; then
-    echo "Invalid container config file '$CONTAINER_CONFIG_FILE': Missing required config variable 'BACKUP_IMAGE'" >&2
+    echo "Invalid container config file ${CONTAINER_CONFIG_FILE@Q}: Missing required config variable 'BACKUP_IMAGE'" >&2
     exit 1
 elif [ -z "${BACKUP_HOME:-}" ]; then
-    echo "Invalid container config file '$CONTAINER_CONFIG_FILE': Missing required config variable 'BACKUP_HOME'" >&2
+    echo "Invalid container config file ${CONTAINER_CONFIG_FILE@Q}: Missing required config variable 'BACKUP_HOME'" >&2
     exit 1
 fi
 
