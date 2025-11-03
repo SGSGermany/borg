@@ -54,6 +54,7 @@ print_options() {
     echo
     echo "Application options:"
     echo "  -v, --verbose               explain what is being done"
+    echo "      --no-progress           show no progress information in interactive mode"
     echo "  -c, --config BACKUP_CONFIG  specify the backup config file to use"
 }
 
@@ -61,6 +62,7 @@ print_options() {
 BACKUP_CONFIG="${BACKUP_CONFIG:-config}"
 ACTION=""
 VERBOSE=""
+PROGRESS="y"
 
 while [ $# -gt 0 ]; do
     if [ "$1" == "--help" ]; then
@@ -68,6 +70,9 @@ while [ $# -gt 0 ]; do
         exit
     elif [ "$1" == "--verbose" ] || [ "$1" == "-v" ]; then
         VERBOSE="yes"
+        shift
+    elif [ "$1" == "--no-progress" ]; then
+        PROGRESS=""
         shift
     elif [ "$1" == "--config" ] || [ "$1" == "-c" ]; then
         if [ -z "${2:-}" ]; then
@@ -194,6 +199,9 @@ fi
 
 BORG_MOUNT="$HOME/borg/mount"
 BORG_MOUNT_INFO="${BORG_MOUNT@Q}"
+
+# disable progress information in non-interactive mode
+tty --quiet || PROGRESS=""
 
 # export Borg environment variables
 export BORG_REPO

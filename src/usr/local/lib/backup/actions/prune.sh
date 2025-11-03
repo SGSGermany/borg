@@ -27,7 +27,7 @@ action_info() {
 }
 
 action_exec() {
-    local BORG_PARAMS=( -v --show-rc --stats --list )
+    local BORG_PARAMS=( -v --show-rc ${PROGRESS:+--progress} --stats --list )
 
     # providing no retention policy means keeping everything
     # prunes no actual archives, but removes old checkpoints

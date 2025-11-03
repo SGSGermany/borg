@@ -30,7 +30,7 @@ action_info() {
 }
 
 action_exec() {
-    local BORG_PARAMS=( -v --show-rc --stats )
+    local BORG_PARAMS=( -v --show-rc ${PROGRESS:+--progress} --stats )
     local BORG_ARGS=()
 
     # read command line options

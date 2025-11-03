@@ -48,6 +48,7 @@ print_options() {
     echo
     echo "Application options:"
     echo "  -v, --verbose               explain what is being done"
+    echo "      --no-progress           show no progress information in interactive mode"
     echo "  -c, --config BACKUP_CONFIG  specify the backup config file to use"
     echo
     print_host_options
@@ -181,6 +182,7 @@ CONTAINER_CONFIG="${CONTAINER_CONFIG:-config}"
 BACKUP_CONFIG="${BACKUP_CONFIG:-}"
 ACTION=""
 VERBOSE=""
+NO_PROGRESS=""
 NO_BLOCK=""
 
 while [ $# -gt 0 ]; do
@@ -189,6 +191,9 @@ while [ $# -gt 0 ]; do
         exit
     elif [ "$1" == "--verbose" ] || [ "$1" == "-v" ]; then
         VERBOSE="yes"
+        shift
+    elif [ "$1" == "--no-progress" ]; then
+        NO_PROGRESS="yes"
         shift
     elif [ "$1" == "--no-block" ] || [ "$1" == "-n" ]; then
         NO_BLOCK="yes"
@@ -345,6 +350,7 @@ CONTAINER_OPTS=()
 BACKUP_OPTS=()
 [ -z "$BACKUP_CONFIG" ] || BACKUP_OPTS+=( --config "$BACKUP_CONFIG" )
 [ -z "$VERBOSE" ] || BACKUP_OPTS+=( --verbose )
+[ -z "$NO_PROGRESS" ] || BACKUP_OPTS+=( --no-progress )
 
 run_borg "${CONTAINER_OPTS[@]}" -- \
     "backup" "${BACKUP_OPTS[@]}" "$ACTION" "$@"

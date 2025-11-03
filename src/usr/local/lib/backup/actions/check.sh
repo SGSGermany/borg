@@ -23,6 +23,6 @@ action_info() {
 }
 
 action_exec() {
-    cmd borg check -v --show-rc "$@"
+    cmd borg check -v --show-rc ${PROGRESS:+--progress} "$@"
     return $?
 }

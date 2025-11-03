@@ -23,6 +23,6 @@ action_info() {
 }
 
 action_exec() {
-    cmd borg delete -v --show-rc --stats "$@"
+    cmd borg delete -v --show-rc ${PROGRESS:+--progress} --stats "$@"
     return $?
 }

@@ -25,6 +25,6 @@ action_info() {
 
 action_exec() {
     cmd cd "$BACKUP_RESTORE"
-    cmd borg extract -v --show-rc --sparse "$@"
+    cmd borg extract -v --show-rc ${PROGRESS:+--progress} --sparse "$@"
     return $?
 }

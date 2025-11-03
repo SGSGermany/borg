@@ -23,6 +23,6 @@ action_info() {
 }
 
 action_exec() {
-    cmd borg compact -v --show-rc "$@"
+    cmd borg compact -v --show-rc ${PROGRESS:+--progress} "$@"
     return $?
 }
