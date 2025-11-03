@@ -11,25 +11,19 @@
 
 action_help() {
     echo "Usage:"
-    echo "  $APP_NAME [OPTIONS]... borg COMMAND [ARGUMENTS]..."
+    echo "  $APP_NAME [OPTIONS]... mount"
     echo
     echo "See also:"
-    echo "  borg(1)"
-    echo "  https://borgbackup.readthedocs.io/en/stable/usage.html"
+    echo "  borg-mount(1)"
+    echo "  https://borgbackup.readthedocs.io/en/stable/usage/mount.html"
 }
 
 action_info() {
     echo + "BORG_REPO=$BORG_REPO_INFO" >&2
+    echo + "BORG_MOUNT=$BORG_MOUNT_INFO" >&2
 }
 
 action_exec() {
-    local BORG_STATUS=0
-
-    export BORG_REPO="$BORG_REPO"
-    export BORG_PASSCOMMAND="/usr/local/bin/borg-pass"
-
-    cmd borg "$@" \
-        || { BORG_STATUS=$?; true; }
-
-    return $BORG_STATUS
+    cmd borg mount "$@" :: "$BORG_MOUNT"
+    return $?
 }

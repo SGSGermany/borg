@@ -42,6 +42,7 @@ print_help() {
     echo "  info     Displays information about a Borg repository or its archives."
     echo "  borg     Runs an arbitrary Borg command."
     echo "  configs  Prints a list of available backup configs."
+    echo "  shell    Opens an interactive Bash shell."
     echo "  help     Prints usage info about an action and exits."
     echo
     print_options
@@ -127,15 +128,15 @@ fi
 source "$LIB_DIR/helper.sh.inc"
 
 # source action
-if [ ! -e "$LIB_DIR/$ACTION.sh" ]; then
+if [ ! -e "$LIB_DIR/actions/$ACTION.sh" ]; then
     echo "Invalid action ${ACTION@Q}: Action not found" >&2
     exit 1
-elif [ ! -f "$LIB_DIR/$ACTION.sh" ] || [ ! -r "$LIB_DIR/$ACTION.sh" ]; then
+elif [ ! -f "$LIB_DIR/actions/$ACTION.sh" ] || [ ! -r "$LIB_DIR/actions/$ACTION.sh" ]; then
     echo "Invalid action ${ACTION@Q}: Action is invalid" >&2
     exit 1
 fi
 
-source "$LIB_DIR/$ACTION.sh"
+source "$LIB_DIR/actions/$ACTION.sh"
 
 # print usage info, if requested
 if [ -n "$PRINT_HELP" ]; then
@@ -193,6 +194,11 @@ fi
 
 BORG_MOUNT="$HOME/borg/mount"
 BORG_MOUNT_INFO="${BORG_MOUNT@Q}"
+
+# export Borg environment variables
+export BORG_REPO
+export BORG_PASSCOMMAND="/usr/local/bin/borg-pass"
+export BORG_EXIT_CODES=modern
 
 # call action
 if [ -n "$VERBOSE" ]; then

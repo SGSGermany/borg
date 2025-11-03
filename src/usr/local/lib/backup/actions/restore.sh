@@ -24,16 +24,7 @@ action_info() {
 }
 
 action_exec() {
-    local BORG_PARAMS=( --sparse )
-    local BORG_STATUS=0
-
-    export BORG_REPO="$BORG_REPO"
-    export BORG_PASSCOMMAND="/usr/local/bin/borg-pass"
-
     cmd cd "$BACKUP_RESTORE"
-
-    cmd borg extract "${BORG_PARAMS[@]}" "$@" \
-        || { BORG_STATUS=$?; true; }
-
-    return $BORG_STATUS
+    cmd borg extract -v --show-rc --sparse "$@"
+    return $?
 }

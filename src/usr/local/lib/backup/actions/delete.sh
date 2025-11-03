@@ -11,11 +11,11 @@
 
 action_help() {
     echo "Usage:"
-    echo "  $APP_NAME [OPTIONS]... check [::ARCHIVE]"
+    echo "  $APP_NAME [OPTIONS]... delete [::ARCHIVE [ARCHIVES]...]"
     echo
     echo "See also:"
-    echo "  borg-check(1)"
-    echo "  https://borgbackup.readthedocs.io/en/stable/usage/check.html"
+    echo "  borg-delete(1)"
+    echo "  https://borgbackup.readthedocs.io/en/stable/usage/delete.html"
 }
 
 action_info() {
@@ -23,14 +23,6 @@ action_info() {
 }
 
 action_exec() {
-    local BORG_PARAMS=( -v --show-rc )
-    local BORG_STATUS=0
-
-    export BORG_REPO="$BORG_REPO"
-    export BORG_PASSCOMMAND="/usr/local/bin/borg-pass"
-
-    cmd borg check "${BORG_PARAMS[@]}" "$@" \
-        || { BORG_STATUS=$?; true; }
-
-    return $BORG_STATUS
+    cmd borg delete -v --show-rc --stats "$@"
+    return $?
 }

@@ -11,27 +11,18 @@
 
 action_help() {
     echo "Usage:"
-    echo "  $APP_NAME [OPTIONS]... mount"
+    echo "  $APP_NAME [OPTIONS]... init --encryption MODE [--append-only]"
     echo
     echo "See also:"
-    echo "  borg-mount(1)"
-    echo "  https://borgbackup.readthedocs.io/en/stable/usage/mount.html"
+    echo "  borg-init(1)"
+    echo "  https://borgbackup.readthedocs.io/en/stable/usage/init.html"
 }
 
 action_info() {
     echo + "BORG_REPO=$BORG_REPO_INFO" >&2
-    echo + "BORG_MOUNT=$BORG_MOUNT_INFO" >&2
 }
 
 action_exec() {
-    local BORG_PARAMS=()
-    local BORG_STATUS=0
-
-    export BORG_PASSCOMMAND="/usr/local/bin/borg-pass"
-
-    cmd borg mount "${BORG_PARAMS[@]}" \
-        "$BORG_REPO" "$BORG_MOUNT" \
-        || { BORG_STATUS=$?; true; }
-
-    return $BORG_STATUS
+    cmd borg init "$@"
+    return $?
 }

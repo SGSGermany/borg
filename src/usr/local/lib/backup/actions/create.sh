@@ -11,7 +11,13 @@
 
 action_help() {
     echo "Usage:"
-    echo "  $APP_NAME [OPTIONS]... create [--comment COMMENT] [ARCHIVE]"
+    echo "  $APP_NAME [OPTIONS]... create [CREATE_OPTIONS]... [ARCHIVE]"
+    echo
+    echo "Action options:"
+    echo "  -n, --dry-run              do not create a backup archive"
+    echo "      --comment COMMENT      add a comment text to the archive"
+    echo "      --timestamp TIMESTAMP  manually specify the archive creation date/time"
+    echo "                             (UTC, yyyy-mm-ddThh:mm:ss format)"
     echo
     echo "See also:"
     echo "  borg-create(1)"
@@ -24,24 +30,23 @@ action_info() {
 }
 
 action_exec() {
-    local BORG_PARAMS=( -v --stats --show-rc )
+    local BORG_PARAMS=( -v --show-rc --stats )
     local BORG_ARGS=()
-    local BORG_STATUS=0
-
-    export BORG_PASSCOMMAND="/usr/local/bin/borg-pass"
 
     # read command line options
     local ARCHIVE=""
-    local COMMENT=""
 
     while [ $# -gt 0 ]; do
-        if [ "$1" == "--comment" ]; then
+        if [ "$1" == "-n" ] || [ "$1" == "--dry-run" ]; then
+            BORG_PARAMS+=( "$1" )
+            shift
+        elif [ "$1" == "--comment" ] || [ "$1" == "--timestamp" ]; then
             if [ -z "${2:-}" ]; then
-                echo "Invalid \`$APP_NAME create\` options: Missing required argument 'COMMENT' for option '--comment'" >&2
+                echo "Invalid \`$APP_NAME create\` options: Missing required argument for option '$1'" >&2
                 return 1
             fi
 
-            COMMENT="$2"
+            BORG_PARAMS+=( "$1" "$2" )
             shift 2
         elif [ -z "$ARCHIVE" ]; then
             ARCHIVE="$1"
@@ -52,7 +57,7 @@ action_exec() {
         fi
     done
 
-    # options
+    # other options
     BORG_PARAMS+=( --compression "lz4" )
 
     # backup paths
@@ -68,22 +73,11 @@ action_exec() {
         BORG_ARGS+=( --exclude "$BORG_CREATE_EXCLUDE" )
     done
 
-    # pass command line options
-    if [ -n "$ARCHIVE" ]; then
-        BORG_CREATE_ARCHIVE="$ARCHIVE"
-    fi
-
-    if [ -n "$COMMENT" ]; then
-        BORG_PARAMS+=( --comment "$COMMENT" )
-    fi
-
     # create backup
     cmd cd "$BACKUP_PATH"
 
     cmd borg create "${BORG_PARAMS[@]}" \
-        "$BORG_REPO"::"$BORG_CREATE_ARCHIVE" \
-        "${BORG_ARGS[@]}" \
-        || { BORG_STATUS=$?; true; }
-
-    return $BORG_STATUS
+        ::"${ARCHIVE:-$BORG_CREATE_ARCHIVE}" \
+        "${BORG_ARGS[@]}"
+    return $?
 }

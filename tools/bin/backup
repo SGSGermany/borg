@@ -36,7 +36,7 @@ print_help() {
     echo "  info     Displays information about a Borg repository or its archives."
     echo "  borg     Runs an arbitrary Borg command."
     echo "  configs  Prints a list of available backup configs."
-    echo "  shell    Opens an interactive Bash shell inside the Borg container."
+    echo "  shell    Opens an interactive Bash shell."
     echo "  help     Prints usage info about an action and exits."
     echo
     print_options
@@ -329,21 +329,6 @@ elif ! cmd flock -n 9; then
     exit 1
 fi
 
-# open Bash shell, if requested (action "shell")
-if [ "$ACTION" == "shell" ]; then
-    if [ -n "$PRINT_HELP" ]; then
-        echo "Usage:"
-        echo "  $APP_NAME [OPTIONS]... shell"
-        echo
-        print_options
-        exit
-    fi
-
-    run_borg --tty --env BACKUP_CONFIG="$BACKUP_CONFIG" -- \
-        "bash"
-    exit
-fi
-
 # print usage info, if requested
 if [ -n "$PRINT_HELP" ]; then
     run_borg -- \
@@ -354,10 +339,13 @@ if [ -n "$PRINT_HELP" ]; then
 fi
 
 # run Borg container
-OPTIONS=()
-[ -z "$BACKUP_CONFIG" ] || OPTIONS+=( --config "$BACKUP_CONFIG" )
-[ -z "$VERBOSE" ] || OPTIONS+=( --verbose )
+CONTAINER_OPTS=()
+[ "$ACTION" != "shell" ] || CONTAINER_OPTS+=( --tty )
 
-run_borg -- \
-    "backup" "${OPTIONS[@]}" "$ACTION" "$@"
+BACKUP_OPTS=()
+[ -z "$BACKUP_CONFIG" ] || BACKUP_OPTS+=( --config "$BACKUP_CONFIG" )
+[ -z "$VERBOSE" ] || BACKUP_OPTS+=( --verbose )
+
+run_borg "${CONTAINER_OPTS[@]}" -- \
+    "backup" "${BACKUP_OPTS[@]}" "$ACTION" "$@"
 exit $?

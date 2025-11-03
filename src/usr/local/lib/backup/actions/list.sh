@@ -11,27 +11,18 @@
 
 action_help() {
     echo "Usage:"
-    echo "  $APP_NAME [OPTIONS]... umount"
+    echo "  $APP_NAME [OPTIONS]... list [::ARCHIVE [PATHS]...]"
     echo
     echo "See also:"
-    echo "  borg-umount(1)"
-    echo "  https://borgbackup.readthedocs.io/en/stable/usage/umount.html"
+    echo "  borg-list(1)"
+    echo "  https://borgbackup.readthedocs.io/en/stable/usage/list.html"
 }
 
 action_info() {
     echo + "BORG_REPO=$BORG_REPO_INFO" >&2
-    echo + "BORG_MOUNT=$BORG_MOUNT_INFO" >&2
 }
 
 action_exec() {
-    local BORG_PARAMS=()
-    local BORG_STATUS=0
-
-    export BORG_PASSCOMMAND="/usr/local/bin/borg-pass"
-
-    cmd borg umount "${BORG_PARAMS[@]}" \
-        "$BORG_MOUNT" \
-        || { BORG_STATUS=$?; true; }
-
-    return $BORG_STATUS
+    cmd borg list "$@"
+    return $?
 }

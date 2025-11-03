@@ -11,11 +11,11 @@
 
 action_help() {
     echo "Usage:"
-    echo "  $APP_NAME [OPTIONS]... init --encryption MODE [--append-only]"
+    echo "  $APP_NAME [OPTIONS]... compact"
     echo
     echo "See also:"
-    echo "  borg-init(1)"
-    echo "  https://borgbackup.readthedocs.io/en/stable/usage/init.html"
+    echo "  borg-compact(1)"
+    echo "  https://borgbackup.readthedocs.io/en/stable/usage/compact.html"
 }
 
 action_info() {
@@ -23,14 +23,6 @@ action_info() {
 }
 
 action_exec() {
-    local BORG_PARAMS=()
-    local BORG_STATUS=0
-
-    export BORG_REPO="$BORG_REPO"
-    export BORG_PASSCOMMAND="/usr/local/bin/borg-pass"
-
-    cmd borg init "${BORG_PARAMS[@]}" "$@" \
-        || { BORG_STATUS=$?; true; }
-
-    return $BORG_STATUS
+    cmd borg compact -v --show-rc "$@"
+    return $?
 }
