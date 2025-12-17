@@ -109,7 +109,7 @@ run_borg() {
     RUN_OPTS+=( --name "$BACKUP_CONTAINER" )
     RUN_OPTS+=( --replace --rm )
 
-    RUN_OPTS+=( --pull "always" )
+    RUN_OPTS+=( --pull "newer" )
 
     RUN_OPTS+=( --net "slirp4netns" )
     RUN_OPTS+=( --security-opt label="disable" )
